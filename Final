@@ -1,0 +1,166 @@
+import pygame
+from pygame.locals import *
+import os
+import sys
+import math
+import random
+pygame.init()
+
+#Surface
+W=550
+H=450
+surface=pygame.display.set_mode((W, H), 0,32)
+pygame.display.set_caption("Dude's Adventures")
+
+#Background
+bg=pygame.image.load("bg.png").convert()
+bgx=0
+bgx2=bg.get_width()
+speed=30
+    
+#bg speed
+pygame.time.set_timer(USEREVENT+1, 500)
+
+#Clock
+clock=pygame.time.Clock()
+
+#Character
+class player(object):
+    run = [pygame.image.load(os.path.join('images', str(x) + '.png')) for x in range(8,16)]
+    jump = [pygame.image.load(os.path.join('images', str(x) + '.png')) for x in range(1,8)]
+    fall = pygame.image.load(os.path.join('images', "0.png"))
+    jumpList = [1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4]
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.jumping = False
+        self.falling = False
+        self.slideCount = 0
+        self.jumpCount = 0
+        self.runCount = 0
+        self.slideUp = False
+    
+    def draw(self, surface):
+        if self.falling:
+            surface.blit(self.fall, (self.x, self.y+30))
+        elif self.jumping:
+            self.y -= self.jumpList[self.jumpCount] * 1.1
+            surface.blit(self.jump[self.jumpCount//18], (self.x,self.y))
+            self.jumpCount += 1
+            if self.jumpCount > 108:
+                self.jumpCount = 0
+                self.jumping = False
+                self.runCount = 0
+            self.hitbox=(self.x+4, self.y, self.width-24, self.height-10)
+        else:
+            if self.runCount > 42:
+                self.runCount = 0
+            surface.blit(self.run[self.runCount//6], (self.x,self.y))
+            self.runCount += 1
+            self.hitbox=(self.x+4,self.y, self.width-24, self.height-13)
+        pygame.draw.rect(surface, (255,0,0), self.hitbox, 2) #draws hit box
+runner = player(100, 300, 80, 80)
+
+#Obstacles
+class stalactite(object):
+    stalactite = pygame.image.load(os.path.join('images', "Spike2.png"))
+    def __init__(self, x,y,width,height):
+        self.x=x
+        self.y=y
+        self.width=width
+        self.height=height
+    def draw(self, surface):
+        self.hitbox=(self.x, self.y, self.width, self.height) #define hitbox
+        pygame.draw.rect(surface, (255,0,0), self.hitbox, 2)
+        surface.blit(self.stalactite, (self.x, self.y))
+    def collide(self,rect):
+        #checks if x-cordinantes match
+        if rect[0]+rect[2] > self.hitbox[0] and rect[0] < self.hitbox[0]+self.hitbox[2]:
+            #checks if y-cordinanted match
+            if rect[1] < self.hitbox[3]:
+                return True
+        else:
+            return False
+    
+class stalagmite(object):
+    stalagmite = pygame.image.load(os.path.join('images', "Spike1.png"))
+    def __init__(self, x,y,width,height):
+        self.x=x
+        self.y=y
+        self.width=width
+        self.height=height
+    def draw(self, surface):
+        self.hitbox=(self.x, self.y, self.width, self.height) #define hitbox
+        pygame.draw.rect(surface, (255,0,0), self.hitbox, 2)
+        surface.blit(self.stalagmite, (self.x, self.y))
+    def collide(self,rect):
+        if rect[0]+rect[2] > self.hitbox[0] and rect[0] < self.hitbox[0]+self.hitbox[2]:
+            if rect[1]+rect[3] > self.hitbox[1]:
+                return True
+        else:
+            return False
+obstacles=[]
+#timer to generate new object
+pygame.time.set_timer(USEREVENT+2, random.randrange(3000,4500))
+
+def DrawWindow():
+    surface.blit(bg, (bgx, 0))
+    surface.blit(bg, (bgx2, 0))
+    runner.draw(surface)
+    for obstacle in obstacles:
+        obstacle.draw(surface)
+    pygame.display.update()
+  
+active=True
+while active:
+    #moving background
+    DrawWindow()
+    bgx -= 1.4
+    bgx2 -= 1.4
+    
+    if bgx < bg.get_width() *-1:
+        bgx=bg.get_width()
+        #resets position of background when it at the - width
+    if bgx2 < bg.get_width() *-1:
+        bgx2=bg.get_width()
+        #resets position of the second background
+    
+    for event in pygame.event.get():
+        if event.type==pygame.QUIT:
+            active=False
+            pygame.quit()
+            sys.exit()
+        
+        #bg speed timer
+        if event.type == USEREVENT+1:
+            speed+=0.5 
+        
+        #Key presses
+        keys=pygame.key.get_pressed()
+        if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
+            if not(runner.jumping):
+                runner.jumping=True
+        if keys[pygame.K_DOWN]:
+            if not(runner.jumping):
+                runner.sliding=True
+        
+        #Obstacles
+        if event.type==USEREVENT+2:
+            r = random.randrange(0,2)
+            if r==0:
+                obstacles.append(stalactite(600,0,45,115))
+            elif r==1:
+                obstacles.append(stalagmite(600,250,45,150))
+        for obstacle in obstacles:
+            obstacle.x-= 2
+            #removing off screen objects
+            if obstacle.x<obstacle.width*-1:
+                obstacles.pop(obstacles.index(obstacle))
+            #hitting obstacle
+            if obstacle.collide(runner.hitbox):
+                runner.falling=True
+        
+        
+    clock.tick(speed)
